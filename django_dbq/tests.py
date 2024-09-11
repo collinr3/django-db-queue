@@ -61,10 +61,10 @@ class JobModelMethodTestCase(TestCase):
         Job.objects.create(name="testjob", queue_name="testworker")
         Job.objects.create(name="testjob", queue_name="testworker")
         Job.objects.create(
-            name="testjob", queue_name="testworker", state=Job.STATES.FAILED
+            name="testjob", queue_name="testworker", state=Job.FAILED
         )
         Job.objects.create(
-            name="testjob", queue_name="testworker", state=Job.STATES.COMPLETE
+            name="testjob", queue_name="testworker", state=Job.COMPLETE
         )
 
         queue_depths = Job.get_queue_depths()
@@ -75,16 +75,16 @@ class JobModelMethodTestCase(TestCase):
 class QueueDepthTestCase(TestCase):
     def test_queue_depth(self):
 
-        Job.objects.create(name="testjob", state=Job.STATES.FAILED)
-        Job.objects.create(name="testjob", state=Job.STATES.NEW)
-        Job.objects.create(name="testjob", state=Job.STATES.FAILED)
-        Job.objects.create(name="testjob", state=Job.STATES.COMPLETE)
-        Job.objects.create(name="testjob", state=Job.STATES.READY)
+        Job.objects.create(name="testjob", state=Job.FAILED)
+        Job.objects.create(name="testjob", state=Job.NEW)
+        Job.objects.create(name="testjob", state=Job.FAILED)
+        Job.objects.create(name="testjob", state=Job.COMPLETE)
+        Job.objects.create(name="testjob", state=Job.READY)
         Job.objects.create(
-            name="testjob", queue_name="testqueue", state=Job.STATES.READY
+            name="testjob", queue_name="testqueue", state=Job.READY
         )
         Job.objects.create(
-            name="testjob", queue_name="testqueue", state=Job.STATES.READY
+            name="testjob", queue_name="testqueue", state=Job.READY
         )
 
         stdout = StringIO()
@@ -94,16 +94,16 @@ class QueueDepthTestCase(TestCase):
 
     def test_queue_depth_multiple_queues(self):
 
-        Job.objects.create(name="testjob", state=Job.STATES.FAILED)
-        Job.objects.create(name="testjob", state=Job.STATES.NEW)
-        Job.objects.create(name="testjob", state=Job.STATES.FAILED)
-        Job.objects.create(name="testjob", state=Job.STATES.COMPLETE)
-        Job.objects.create(name="testjob", state=Job.STATES.READY)
+        Job.objects.create(name="testjob", state=Job.FAILED)
+        Job.objects.create(name="testjob", state=Job.NEW)
+        Job.objects.create(name="testjob", state=Job.FAILED)
+        Job.objects.create(name="testjob", state=Job.COMPLETE)
+        Job.objects.create(name="testjob", state=Job.READY)
         Job.objects.create(
-            name="testjob", queue_name="testqueue", state=Job.STATES.READY
+            name="testjob", queue_name="testqueue", state=Job.READY
         )
         Job.objects.create(
-            name="testjob", queue_name="testqueue", state=Job.STATES.READY
+            name="testjob", queue_name="testqueue", state=Job.READY
         )
 
         stdout = StringIO()
@@ -173,26 +173,26 @@ class ShutdownTestCase(TestCase):
         worker.shutdown(None, None)
 
         job.refresh_from_db()
-        self.assertEqual(job.state, Job.STATES.STOPPING)
+        self.assertEqual(job.state, Job.STOPPING)
 
 
 @override_settings(JOBS={"testjob": {"tasks": ["a"]}})
 class JobTestCase(TestCase):
     def test_create_job(self):
         job = Job(name="testjob")
-        self.assertEqual(job.state, Job.STATES.NEW)
+        self.assertEqual(job.state, Job.NEW)
 
     def test_create_job_with_queue(self):
         job = Job(name="testjob", queue_name="lol")
-        self.assertEqual(job.state, Job.STATES.NEW)
+        self.assertEqual(job.state, Job.NEW)
         self.assertEqual(job.queue_name, "lol")
 
     def test_get_next_ready_job(self):
         self.assertTrue(Job.objects.get_ready_or_none("default") is None)
 
-        Job.objects.create(name="testjob", state=Job.STATES.READY)
-        Job.objects.create(name="testjob", state=Job.STATES.PROCESSING)
-        expected = Job.objects.create(name="testjob", state=Job.STATES.READY)
+        Job.objects.create(name="testjob", state=Job.READY)
+        Job.objects.create(name="testjob", state=Job.PROCESSING)
+        expected = Job.objects.create(name="testjob", state=Job.READY)
         expected.created = datetime.now() - timedelta(minutes=1)
         expected.save()
 
@@ -200,7 +200,7 @@ class JobTestCase(TestCase):
 
     def test_gets_jobs_in_priority_order(self):
         job_1 = Job.objects.create(name="testjob")
-        job_2 = Job.objects.create(name="testjob", state=Job.STATES.PROCESSING)
+        job_2 = Job.objects.create(name="testjob", state=Job.PROCESSING)
         job_3 = Job.objects.create(name="testjob", priority=3)
         job_4 = Job.objects.create(name="testjob", priority=2)
         self.assertEqual(
@@ -211,7 +211,7 @@ class JobTestCase(TestCase):
 
     def test_gets_jobs_in_negative_priority_order(self):
         job_1 = Job.objects.create(name="testjob")
-        job_2 = Job.objects.create(name="testjob", state=Job.STATES.PROCESSING)
+        job_2 = Job.objects.create(name="testjob", state=Job.PROCESSING)
         job_3 = Job.objects.create(name="testjob", priority=-2)
         job_4 = Job.objects.create(name="testjob", priority=1)
         self.assertEqual(
@@ -223,7 +223,7 @@ class JobTestCase(TestCase):
     def test_gets_jobs_in_priority_and_date_order(self):
         job_1 = Job.objects.create(name="testjob", priority=3)
         job_2 = Job.objects.create(
-            name="testjob", state=Job.STATES.PROCESSING, priority=3
+            name="testjob", state=Job.PROCESSING, priority=3
         )
         job_3 = Job.objects.create(name="testjob", priority=3)
         job_4 = Job.objects.create(name="testjob", priority=3)
@@ -257,9 +257,9 @@ class JobTestCase(TestCase):
         """
         self.assertTrue(Job.objects.get_ready_or_none("default") is None)
 
-        Job.objects.create(name="testjob", state=Job.STATES.NEW)
-        Job.objects.create(name="testjob", state=Job.STATES.PROCESSING)
-        expected = Job.objects.create(name="testjob", state=Job.STATES.NEW)
+        Job.objects.create(name="testjob", state=Job.NEW)
+        Job.objects.create(name="testjob", state=Job.PROCESSING)
+        expected = Job.objects.create(name="testjob", state=Job.NEW)
         expected.created = datetime.now() - timedelta(minutes=1)
         expected.save()
 
@@ -285,7 +285,7 @@ class ProcessJobTestCase(TestCase):
         job = Job.objects.create(name="testjob")
         Worker("default", 1, 0)._process_job()
         job = Job.objects.get()
-        self.assertEqual(job.state, Job.STATES.COMPLETE)
+        self.assertEqual(job.state, Job.COMPLETE)
 
     def test_process_job_wrong_queue(self):
         """
@@ -294,7 +294,7 @@ class ProcessJobTestCase(TestCase):
         job = Job.objects.create(name="testjob", queue_name="lol")
         Worker("default", 1, 0)._process_job()
         job = Job.objects.get()
-        self.assertEqual(job.state, Job.STATES.NEW)
+        self.assertEqual(job.state, Job.NEW)
 
 
 @override_settings(
@@ -333,7 +333,7 @@ class JobFailureHookTestCase(TestCase):
         job = Job.objects.create(name="testjob")
         Worker("default", 1, 0)._process_job()
         job = Job.objects.get()
-        self.assertEqual(job.state, Job.STATES.FAILED)
+        self.assertEqual(job.state, Job.FAILED)
         self.assertEqual(job.workspace["output"], "failure hook ran")
 
 
@@ -342,23 +342,23 @@ class DeleteOldJobsTestCase(TestCase):
     def test_delete_old_jobs(self):
         two_days_ago = datetime.utcnow() - timedelta(days=2)
 
-        j1 = Job.objects.create(name="testjob", state=Job.STATES.COMPLETE)
+        j1 = Job.objects.create(name="testjob", state=Job.COMPLETE)
         j1.created = two_days_ago
         j1.save()
 
-        j2 = Job.objects.create(name="testjob", state=Job.STATES.FAILED)
+        j2 = Job.objects.create(name="testjob", state=Job.FAILED)
         j2.created = two_days_ago
         j2.save()
 
-        j3 = Job.objects.create(name="testjob", state=Job.STATES.STOPPING)
+        j3 = Job.objects.create(name="testjob", state=Job.STOPPING)
         j3.created = two_days_ago
         j3.save()
 
-        j4 = Job.objects.create(name="testjob", state=Job.STATES.NEW)
+        j4 = Job.objects.create(name="testjob", state=Job.NEW)
         j4.created = two_days_ago
         j4.save()
 
-        j5 = Job.objects.create(name="testjob", state=Job.STATES.COMPLETE)
+        j5 = Job.objects.create(name="testjob", state=Job.COMPLETE)
 
         Job.objects.delete_old()
 
@@ -377,8 +377,8 @@ class ShiftTestCase(TestCase):
         call_command("worker", rate_limit=2, shift_limit=1, stdout=stdout)
         output = stdout.getvalue()
         self.assertTrue("rate limit of one job per 2 second(s) and a shift constraint of 1 seconds" in output)
-        self.assertEqual(Job.objects.filter(state=Job.STATES.NEW).count(), 1)
-        self.assertEqual(Job.objects.filter(state=Job.STATES.COMPLETE).count(), 1)
+        self.assertEqual(Job.objects.filter(state=Job.NEW).count(), 1)
+        self.assertEqual(Job.objects.filter(state=Job.COMPLETE).count(), 1)
 
     def test_rate_with_equal_shift_limit(self):
         Job.objects.create(name="testshift")
@@ -387,8 +387,8 @@ class ShiftTestCase(TestCase):
         call_command("worker", rate_limit=1, shift_limit=1, stdout=stdout)
         output = stdout.getvalue()
         self.assertTrue("rate limit of one job per 1 second(s) and a shift constraint of 1 seconds" in output)
-        self.assertEqual(Job.objects.filter(state=Job.STATES.NEW).count(), 1)
-        self.assertEqual(Job.objects.filter(state=Job.STATES.COMPLETE).count(), 1)
+        self.assertEqual(Job.objects.filter(state=Job.NEW).count(), 1)
+        self.assertEqual(Job.objects.filter(state=Job.COMPLETE).count(), 1)
 
     def test_rate_with_longer_shift_limit(self):
         Job.objects.create(name="testshift")
@@ -397,8 +397,8 @@ class ShiftTestCase(TestCase):
         call_command("worker", rate_limit=1, shift_limit=2, stdout=stdout)
         output = stdout.getvalue()
         self.assertTrue("rate limit of one job per 1 second(s) and a shift constraint of 2 seconds" in output)
-        self.assertEqual(Job.objects.filter(state=Job.STATES.NEW).count(), 0)
-        self.assertEqual(Job.objects.filter(state=Job.STATES.COMPLETE).count(), 2)
+        self.assertEqual(Job.objects.filter(state=Job.NEW).count(), 0)
+        self.assertEqual(Job.objects.filter(state=Job.COMPLETE).count(), 2)
 
     def test_rate_with_two_workers(self):
         Job.objects.create(name="testshift")
@@ -412,7 +412,7 @@ class ShiftTestCase(TestCase):
         call_command("worker", rate_limit=1, shift_limit=1, stdout=stdout)
         output = stdout.getvalue()
         self.assertTrue("rate limit of one job per 1 second(s) and a shift constraint of 1 seconds" in output)
-        self.assertEqual(Job.objects.filter(state=Job.STATES.NEW).count(), 1)
-        self.assertEqual(Job.objects.filter(state=Job.STATES.COMPLETE).count(), 3)
+        self.assertEqual(Job.objects.filter(state=Job.NEW).count(), 1)
+        self.assertEqual(Job.objects.filter(state=Job.COMPLETE).count(), 3)
 
 

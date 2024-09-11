@@ -37,7 +37,7 @@ class Worker:
     def shutdown(self, signum, frame):
         self.alive = False
         if self.current_job:
-            self.current_job.state = Job.STATES.STOPPING
+            self.current_job.state = Job.STOPPING
             self.current_job.save(update_fields=["state"])
 
     def run(self):
@@ -71,7 +71,7 @@ class Worker:
                 job.state,
                 job.next_task,
             )
-            job.state = Job.STATES.PROCESSING
+            job.state = Job.PROCESSING
             job.save()
             self.current_job = job
 
@@ -80,12 +80,12 @@ class Worker:
             task_function(job)
             job.update_next_task()
             if not job.next_task:
-                job.state = Job.STATES.COMPLETE
+                job.state = Job.COMPLETE
             else:
-                job.state = Job.STATES.READY
+                job.state = Job.READY
         except Exception as exception:
             logger.exception("Job id=%s failed", job.pk)
-            job.state = Job.STATES.FAILED
+            job.state = Job.FAILED
 
             failure_hook_name = job.get_failure_hook_name()
             if failure_hook_name:

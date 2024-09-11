@@ -11,9 +11,7 @@ import datetime
 import logging
 import uuid
 
-
 logger = logging.getLogger(__name__)
-
 
 DELETE_JOBS_AFTER_HOURS = 24
 
@@ -54,9 +52,9 @@ class JobManager(models.Manager):
         Delete all jobs older than DELETE_JOBS_AFTER_HOURS
         """
         delete_jobs_in_states = [
-            Job.STATES.FAILED,
-            Job.STATES.COMPLETE,
-            Job.STATES.STOPPING,
+            Job.FAILED,
+            Job.COMPLETE,
+            Job.STOPPING,
         ]
         delete_jobs_created_before = timezone.now() - datetime.timedelta(
             hours=DELETE_JOBS_AFTER_HOURS
@@ -73,7 +71,7 @@ class JobManager(models.Manager):
     def to_process(self, queue_name):
         return self.select_for_update().filter(
             models.Q(queue_name=queue_name)
-            & models.Q(state__in=(Job.STATES.READY, Job.STATES.NEW))
+            & models.Q(state__in=(Job.READY, Job.NEW))
             & models.Q(
                 models.Q(run_after__isnull=True)
                 | models.Q(run_after__lte=timezone.now())
@@ -82,20 +80,28 @@ class JobManager(models.Manager):
 
 
 class Job(models.Model):
-    class STATES(TextChoices):
-        NEW = "NEW"
-        READY = "READY"
-        PROCESSING = "PROCESSING"
-        STOPPING = "STOPPING"
-        FAILED = "FAILED"
-        COMPLETE = "COMPLETE"
+    NEW = "NEW"
+    READY = "READY"
+    PROCESSING = "PROCESSING"
+    STOPPING = "STOPPING"
+    FAILED = "FAILED"
+    COMPLETE = "COMPLETE"
+
+    STATES = {
+        (NEW, "NEW"),
+        (READY, "READY"),
+        (PROCESSING, "PROCESSING"),
+        (STOPPING, "STOPPING"),
+        (FAILED, "FAILED"),
+        (COMPLETE, "COMPLETE")
+    }
 
     id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, db_index=True)
     modified = models.DateTimeField(auto_now=True)
     name = models.CharField(max_length=100)
     state = models.CharField(
-        max_length=20, choices=STATES.choices, default=STATES.NEW, db_index=True
+        max_length=20, choices=STATES, default=NEW, db_index=True
     )
     next_task = models.CharField(max_length=100, blank=True)
     workspace = JSONField(null=True)
@@ -142,7 +148,7 @@ class Job(models.Model):
     @staticmethod
     def get_queue_depths():
         annotation_dicts = (
-            Job.objects.filter(state__in=(Job.STATES.READY, Job.STATES.NEW))
+            Job.objects.filter(state__in=(Job.READY, Job.NEW))
             .values("queue_name")
             .order_by("queue_name")
             .annotate(Count("queue_name"))
